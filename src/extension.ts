@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import * as child_process from 'child_process';
+import * as process from 'process';
 import * as os from 'os';
 import * as glob from 'glob';
 import * as which from 'which';
@@ -106,6 +107,7 @@ function setTextToSelectionRange(inplace: boolean, range: vscode.Selection, text
 }
 
 function executeCommand(name: string, args: string[], inputText: string, options: object): Promise<string> {
+    let cwd = options['cwd'];
     let config = (vscode.workspace.getConfiguration('filterText') as any);
     let platform = os.platform();
     let bashPath = null;
@@ -139,7 +141,10 @@ function executeCommand(name: string, args: string[], inputText: string, options
             });
         };
         if (bashPath === null) {
+            let originalDir = process.cwd();
+            process.chdir(cwd || '');
             which(name, (err, path) => {
+                process.chdir(originalDir);
                 if (err) {
                     reject('Invalid command is entered.');
                     return;
@@ -148,7 +153,6 @@ function executeCommand(name: string, args: string[], inputText: string, options
             });
         } else {
             let prependArgs;
-            let cwd = options['cwd'];
             // invoke bash with "-l" (--login) option.  This is needed for Cygwin where the Cygwin's C:/cygwin/bin path may exist in PATH only after --login.
             if (cwd != null)
                 prependArgs = ['-lc', 'cd "$1"; shift; "$@"', 'bash', cwd, name]; // set current working directory after bash's --login (-l)
